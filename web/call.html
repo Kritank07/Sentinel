@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Protect a live call — Sentinel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=4">
+  <script src="app.js?v=4" defer></script>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.5 4 5.5v6.2c0 4.6 3.3 8.6 8 9.8 4.7-1.2 8-5.2 8-9.8V5.5l-8-3Z" fill="#EDE8F0"/>
+          <path d="M8.5 12.2 11 14.6l4.6-5" stroke="#2F1F3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Sentinel
+      </a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang="English" aria-pressed="true">English</button>
+        <button type="button" data-lang="Hindi" aria-pressed="false">हिंदी</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <a class="back" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>
+      <span data-i18n="nav.all">All checks</span>
+    </a>
+
+    <h1 data-i18n="call.title">Protect a live call</h1>
+    <p class="lead" data-i18n="call.lead">Put the call on speaker near this device, then start protection. Sentinel listens and warns you if something is wrong.</p>
+
+    <!-- Before the call -->
+    <div class="sheet call-start" id="start-view">
+      <button type="button" class="btn-primary" id="start" data-i18n="call.cta">Start protection</button>
+      <p class="call-tip" data-i18n="call.tip">Never share an OTP, PIN or password on a call, even with someone who says they are police or your bank.</p>
+    </div>
+
+    <!-- During the call -->
+    <div class="call-live" id="live-view" hidden>
+      <div class="call-status connecting" id="status">
+        <div class="status-left">
+          <span class="pulse" aria-hidden="true"></span>
+          <span id="status-text" data-i18n="call.connecting">Connecting…</span>
+          <span class="timer" id="timer">0:00</span>
+        </div>
+        <button type="button" class="btn-end" id="end" data-i18n="call.end">End protection</button>
+      </div>
+
+      <div class="sheet risk-panel" id="risk" aria-live="polite">
+        <p class="risk-waiting" data-i18n="call.waiting">Sentinel is listening. Warnings will appear here.</p>
+      </div>
+
+      <div class="sheet convo">
+        <h2 data-i18n="call.transcript">Live conversation</h2>
+        <div class="convo-lines" id="lines"></div>
+      </div>
+    </div>
+
+    <!-- After the call -->
+    <div class="sheet call-ended" id="ended-view" hidden>
+      <p id="ended-text" data-i18n="call.ended">Protection ended.</p>
+      <button type="button" class="btn-primary" id="again" data-i18n="call.again">Start again</button>
+    </div>
+
+    <p id="error" class="error" role="alert" hidden></p>
+  </main>
+
+  <!-- Full-screen STOP takeover -->
+  <div class="stop-overlay" id="stop" role="alertdialog" aria-modal="true" aria-labelledby="stop-title" aria-describedby="stop-message" hidden>
+    <h2 class="stop-title" id="stop-title" data-i18n="call.stopTitle">STOP</h2>
+    <p class="stop-message" id="stop-message"></p>
+    <p class="stop-action" id="stop-action"></p>
+    <button type="button" class="stop-ok" id="stop-ok" data-i18n="call.ok">Okay</button>
+  </div>
+
+  <footer>
+    <p data-i18n="footer.help">Lost money to a scam in India? Call 1930 or report at cybercrime.gov.in.</p>
+    <p data-i18n="footer.models">Built on Meta Muse Wonder, Muse Spark, Muse Voice Transcribe and SAM 3.1.</p>
+  </footer>
+
+  <script>
+    const TARGET_RATE = 24000;   // what Muse Voice Transcribe expects
+
+    // Float32 audio at the mic's rate -> 16-bit PCM at 24 kHz (linear resampling, fast enough for live use)
+    function toPcm24k(input, fromRate) {
+      const ratio = fromRate / TARGET_RATE;
+      const outLen = Math.floor(input.length / ratio);
+      const out = new Int16Array(outLen);
+      for (let i = 0; i < outLen; i++) {
+        const pos = i * ratio;
+        const i0 = Math.floor(pos);
+        const i1 = Math.min(i0 + 1, input.length - 1);
+        const s = input[i0] + (input[i1] - input[i0]) * (pos - i0);
+        const c = Math.max(-1, Math.min(1, s));
+        out[i] = c < 0 ? c * 0x8000 : c * 0x7fff;
+      }
+      return out.buffer;
+    }
+
+    // While Sentinel speaks a warning, the mic is muted so the warning isn't transcribed as part of the call.
+    let speaking = false;
+    function speak(text) {
+      if (!("speechSynthesis" in window) || !text) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = getLang() === "Hindi" ? "hi-IN" : "en-IN";
+      u.rate = 0.95;
+      const done = () => setTimeout(() => { speaking = false; }, 600);   // small tail for room echo
+      u.onend = done;
+      u.onerror = done;
+      speaking = true;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }
+    function silenceLike(buffer) {
+      return new Int16Array(new Int16Array(buffer).length).buffer;      // keep timing, send no voice
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const $ = (id) => document.getElementById(id);
+      const startView = $("start-view"), liveView = $("live-view"), endedView = $("ended-view");
+      const status = $("status"), statusText = $("status-text"), timer = $("timer");
+      const risk = $("risk"), lines = $("lines"), errorBox = $("error");
+      const overlay = $("stop");
+
+      let ws = null, mic = null, tick = null, ending = false;
+      let scammer = null, partialEl = null;
+
+      function showError(text) {
+        errorBox.textContent = text;
+        errorBox.hidden = false;
+      }
+
+      // After the call ends, the conversation and final verdict stay visible for review.
+      function setView(name) {
+        startView.hidden = name !== "start";
+        liveView.hidden = name === "start";
+        endedView.hidden = name !== "ended";
+        $("end").hidden = name === "ended";
+        if (name === "ended") setStatus("call.ended", true);
+      }
+
+      function setStatus(key, connecting) {
+        statusText.dataset.i18n = key;
+        statusText.textContent = t(key);
+        status.classList.toggle("connecting", connecting);
+      }
+
+      function speakerLabel(speaker) {
+        if (!scammer) return `${t("speaker")} ${speaker}`;
+        return speaker === scammer ? t("call.scammer") : t("call.other");
+      }
+
+      function relabelLines() {
+        lines.querySelectorAll(".line[data-speaker]").forEach((line) => {
+          line.classList.toggle("scammer", line.dataset.speaker === scammer);
+          line.querySelector(".who").textContent = speakerLabel(line.dataset.speaker);
+        });
+      }
+
+      function addLine(speaker, text) {
+        partialEl?.remove();
+        partialEl = null;
+        const line = el("div", "line");
+        line.dataset.speaker = speaker;
+        line.classList.toggle("scammer", speaker === scammer);
+        line.append(el("span", "who", speakerLabel(speaker)), el("span", "said", text));
+        lines.append(line);
+        lines.scrollTop = lines.scrollHeight;
+      }
+
+      function showPartial(text) {
+        if (!text.trim()) return;
+        if (!partialEl) {
+          partialEl = el("div", "line partial");
+          partialEl.append(el("span", "who", "…"), el("span", "said"));
+          lines.append(partialEl);
+        }
+        partialEl.querySelector(".said").textContent = text;
+        lines.scrollTop = lines.scrollHeight;
+      }
+
+      function showRisk(msg) {
+        const verdict = String(msg.verdict || "SAFE").toUpperCase();
+        risk.className = `sheet risk-panel verdict-${verdict.toLowerCase()}`;
+        risk.replaceChildren();
+        const head = el("div", "verdict-head");
+        head.append(el("h2", "verdict-title", t(`verdict.${verdict}`)),
+                    el("span", "risk", `${t("label.risk")} ${msg.score ?? 0}/100`));
+        risk.append(head);
+        if (msg.scam_type) risk.append(el("p", "scam-type", msg.scam_type));
+        if (msg.action && verdict !== "SAFE") {
+          const action = el("div", "action");
+          action.append(el("h3", null, t("label.action")), el("p", null, msg.action));
+          risk.append(action);
+        }
+        if (msg.scammer_speaker && msg.scammer_speaker !== scammer) {
+          scammer = msg.scammer_speaker;
+          relabelLines();
+        }
+      }
+
+      function showStop(msg) {
+        $("stop-message").textContent = msg.message || "";
+        $("stop-action").textContent = msg.action || "";
+        overlay.hidden = false;
+        $("stop-ok").focus();
+        speak(msg.message);
+        navigator.vibrate?.([400, 150, 400, 150, 400]);
+        showRisk({ verdict: "SCAM", score: 100, action: msg.action });
+      }
+
+      $("stop-ok").addEventListener("click", () => {
+        overlay.hidden = true;
+        speechSynthesis?.cancel();
+        speaking = false;
+        $("end").focus();
+      });
+
+      async function cleanup() {
+        clearInterval(tick);
+        const active = mic;
+        mic = null;
+        if (active) {
+          try { await active.stop(); } catch { /* already stopped */ }
+        }
+      }
+
+      async function start() {
+        errorBox.hidden = true;
+        ending = false;
+        scammer = null;
+        partialEl = null;
+        lines.replaceChildren();
+        risk.className = "sheet risk-panel";
+        risk.replaceChildren(el("p", "risk-waiting", t("call.waiting")));
+        setView("live");
+        setStatus("call.connecting", true);
+        timer.textContent = "0:00";
+
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        ws = new WebSocket(`${proto}://${location.host}/ws/live?language=${encodeURIComponent(getLang())}`);
+
+        ws.onmessage = async (event) => {
+          const msg = JSON.parse(event.data);
+          switch (msg.type) {
+            case "ready":
+              try {
+                mic = await startMic((chunk, rate) => {
+                  if (ws?.readyState !== WebSocket.OPEN) return;
+                  const pcm = toPcm24k(chunk, rate);
+                  ws.send(speaking ? silenceLike(pcm) : pcm);
+                });
+              } catch (err) {
+                showError(err.message);
+                ws.close();
+                setView("start");
+                return;
+              }
+              setStatus("call.listening", false);
+              const started = Date.now();
+              tick = setInterval(() => {
+                const secs = Math.floor((Date.now() - started) / 1000);
+                timer.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+              }, 500);
+              break;
+            case "partial": showPartial(msg.text || ""); break;
+            case "line": addLine(msg.speaker || "A", msg.text || ""); break;
+            case "verdict": showRisk(msg); break;
+            case "stop": showStop(msg); break;
+            case "error": showError(msg.message || t("error.generic")); break;
+            case "ended":
+              ending = true;
+              break;
+          }
+        };
+
+        ws.onclose = async () => {
+          await cleanup();
+          ws = null;
+          if (!ending) showError(t("call.lost"));
+          setView("ended");
+        };
+      }
+
+      async function end() {
+        ending = true;
+        await cleanup();
+        if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "end" }));
+        setStatus("call.ended", true);
+      }
+
+      $("start").addEventListener("click", start);
+      $("end").addEventListener("click", end);
+      $("again").addEventListener("click", start);
+      window.addEventListener("beforeunload", () => ws?.close());
+    });
+  </script>
+</body>
+</html>

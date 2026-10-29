@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Check a screenshot — Sentinel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=4">
+  <script src="app.js?v=4" defer></script>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.5 4 5.5v6.2c0 4.6 3.3 8.6 8 9.8 4.7-1.2 8-5.2 8-9.8V5.5l-8-3Z" fill="#EDE8F0"/>
+          <path d="M8.5 12.2 11 14.6l4.6-5" stroke="#2F1F3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Sentinel
+      </a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang="English" aria-pressed="true">English</button>
+        <button type="button" data-lang="Hindi" aria-pressed="false">हिंदी</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <a class="back" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>
+      <span data-i18n="nav.all">All checks</span>
+    </a>
+
+    <h1 data-i18n="screenshot.title">Check a screenshot</h1>
+    <p class="lead" data-i18n="screenshot.lead">Add a screenshot of a message, payment proof, ID card or video call.</p>
+
+    <div class="sheet" id="input-sheet">
+      <div class="dropzone" id="dropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="6" y="2.5" width="12" height="19" rx="2.5"/>
+          <path d="M12 8v6M9.5 11.5 12 14l2.5-2.5"/>
+        </svg>
+        <p data-i18n="screenshot.drop">Drop a screenshot here, paste it, or choose a file.</p>
+        <label class="attach-btn">
+          <span data-i18n="screenshot.choose">Choose screenshot</span>
+          <input type="file" id="file" accept="image/png,image/jpeg" class="sr-only">
+        </label>
+      </div>
+
+      <div class="preview-large" id="preview" hidden>
+        <img id="preview-img" alt="">
+        <button type="button" class="remove-btn" id="remove" data-i18n="message.remove">Remove screenshot</button>
+      </div>
+
+      <div class="actions-row">
+        <button type="button" id="check" class="btn-primary" data-i18n="screenshot.check">Check screenshot</button>
+      </div>
+    </div>
+
+    <p id="error" class="error" role="alert" hidden></p>
+    <div id="loading" class="loading" aria-live="polite" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <span id="loading-text"></span>
+    </div>
+    <section id="result" aria-live="polite"></section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer.help">Lost money to a scam in India? Call 1930 or report at cybercrime.gov.in.</p>
+    <p data-i18n="footer.models">Built on Meta Muse Wonder, Muse Spark, Muse Voice Transcribe and SAM 3.1.</p>
+  </footer>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("check");
+      const errorBox = document.getElementById("error");
+      const result = document.getElementById("result");
+      const dropzone = document.getElementById("dropzone");
+      let resultUrl = null;
+
+      function showError(text) {
+        errorBox.textContent = text;
+        errorBox.hidden = false;
+      }
+
+      const image = setupImageInput({
+        dropTarget: document.getElementById("input-sheet"),
+        fileInput: document.getElementById("file"),
+        preview: document.getElementById("preview"),
+        previewImg: document.getElementById("preview-img"),
+        removeBtn: document.getElementById("remove"),
+        onError: showError,
+        onChange: (file) => {
+          dropzone.hidden = Boolean(file);
+          errorBox.hidden = true;
+          result.replaceChildren();
+        },
+      });
+
+      btn.addEventListener("click", async () => {
+        errorBox.hidden = true;
+        const file = image.file;
+        if (!file) {
+          showError(t("error.noImage"));
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", file, file.name || "screenshot.png");
+        form.append("language", getLang());
+
+        btn.disabled = true;
+        result.replaceChildren();
+        const stop = startLoading(document.getElementById("loading"), document.getElementById("loading-text"),
+                                  ["loading.look", "loading.mark", "loading.write"]);
+        try {
+          const v = await callApi("/api/analyze/image", { method: "POST", body: form });
+          stop();
+          if (resultUrl) URL.revokeObjectURL(resultUrl);
+          resultUrl = URL.createObjectURL(file);
+          renderVerdict(result, v, { media: renderEvidence(resultUrl, v.evidence) });
+        } catch (err) {
+          stop();
+          showError(err.message || t("error.generic"));
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

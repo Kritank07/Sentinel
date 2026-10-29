@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Check a message or link — Sentinel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=4">
+  <script src="app.js?v=4" defer></script>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.5 4 5.5v6.2c0 4.6 3.3 8.6 8 9.8 4.7-1.2 8-5.2 8-9.8V5.5l-8-3Z" fill="#EDE8F0"/>
+          <path d="M8.5 12.2 11 14.6l4.6-5" stroke="#2F1F3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Sentinel
+      </a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang="English" aria-pressed="true">English</button>
+        <button type="button" data-lang="Hindi" aria-pressed="false">हिंदी</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <a class="back" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>
+      <span data-i18n="nav.all">All checks</span>
+    </a>
+
+    <h1 data-i18n="message.title">Check a message or link</h1>
+    <p class="lead" data-i18n="message.lead">Paste the message, or add a screenshot of it. Sentinel reads it for you.</p>
+
+    <div class="sheet" id="input-sheet">
+      <label for="msg" class="sr-only" data-i18n="message.label">Message to check</label>
+      <textarea id="msg" data-i18n-placeholder="message.placeholder" placeholder="Paste the message here…"></textarea>
+
+      <div class="attach-row">
+        <label class="attach-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15.5 7"/>
+          </svg>
+          <span data-i18n="message.attach">Add screenshot</span>
+          <input type="file" id="file" accept="image/png,image/jpeg" class="sr-only">
+        </label>
+        <span class="attach-hint" data-i18n="message.attachHint">or paste or drop an image here</span>
+      </div>
+
+      <div class="preview" id="preview" hidden>
+        <img id="preview-img" alt="">
+        <span class="name" id="preview-name"></span>
+        <button type="button" class="remove-btn" id="remove" data-i18n="message.remove">Remove screenshot</button>
+      </div>
+      <div class="input-row">
+        <div class="examples">
+          <span data-i18n="examples.label">Try an example:</span>
+          <button type="button" class="chip" data-example="kyc" data-i18n="example.kyc">Bank KYC alert</button>
+          <button type="button" class="chip" data-example="parcel" data-i18n="example.parcel">Parcel fee</button>
+          <button type="button" class="chip" data-example="family" data-i18n="example.family">Message from family</button>
+        </div>
+        <button type="button" id="check" class="btn-primary" data-i18n="message.check">Check message</button>
+      </div>
+    </div>
+
+    <p id="error" class="error" role="alert" hidden></p>
+    <div id="loading" class="loading" aria-live="polite" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <span id="loading-text"></span>
+    </div>
+    <section id="result" aria-live="polite"></section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer.help">Lost money to a scam in India? Call 1930 or report at cybercrime.gov.in.</p>
+    <p data-i18n="footer.models">Built on Meta Muse Wonder, Muse Spark, Muse Voice Transcribe and SAM 3.1.</p>
+  </footer>
+
+  <script>
+    const EXAMPLES = {
+      kyc: "Dear Customer, your SBI YONO account will be BLOCKED today. Update PAN/KYC immediately: http://sbi-kyc-verify.top/update or call our helpline 9876543210 - SBI Team",
+      parcel: "Hola, soy de Correos. Su paquete está retenido. Pague 1,99€ de aduana aquí: correos-envio-es.top",
+      family: "Hi Mom, I'll be home late tonight, practice ran over. Can you save me some dinner?",
+    };
+    const IMAGE_TYPES = ["image/png", "image/jpeg"];
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const msg = document.getElementById("msg");
+      const btn = document.getElementById("check");
+      const errorBox = document.getElementById("error");
+      const result = document.getElementById("result");
+      const sheet = document.getElementById("input-sheet");
+      const fileInput = document.getElementById("file");
+      const preview = document.getElementById("preview");
+      const previewImg = document.getElementById("preview-img");
+      const previewName = document.getElementById("preview-name");
+      let attached = null;
+
+      function showError(text) {
+        errorBox.textContent = text;
+        errorBox.hidden = false;
+      }
+
+      function attach(file) {
+        errorBox.hidden = true;
+        if (!file || !IMAGE_TYPES.includes(file.type)) {
+          showError(t("error.imageType"));
+          return;
+        }
+        attached = file;
+        if (previewImg.src) URL.revokeObjectURL(previewImg.src);
+        previewImg.src = URL.createObjectURL(file);
+        previewName.textContent = file.name || "screenshot.png";
+        preview.hidden = false;
+      }
+
+      function clearAttachment() {
+        attached = null;
+        fileInput.value = "";
+        if (previewImg.src) URL.revokeObjectURL(previewImg.src);
+        previewImg.removeAttribute("src");
+        preview.hidden = true;
+      }
+
+      fileInput.addEventListener("change", () => fileInput.files[0] && attach(fileInput.files[0]));
+      document.getElementById("remove").addEventListener("click", clearAttachment);
+
+      // Paste a screenshot straight from the clipboard (Ctrl+V / long-press paste)
+      document.addEventListener("paste", (e) => {
+        const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+        if (item) {
+          e.preventDefault();
+          attach(item.getAsFile());
+        }
+      });
+
+      // Drag and drop onto the input sheet
+      ["dragenter", "dragover"].forEach((ev) => sheet.addEventListener(ev, (e) => {
+        e.preventDefault();
+        sheet.classList.add("dragging");
+      }));
+      ["dragleave", "drop"].forEach((ev) => sheet.addEventListener(ev, () => sheet.classList.remove("dragging")));
+      sheet.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer?.files?.[0];
+        if (file) attach(file);
+      });
+
+      document.querySelectorAll("[data-example]").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          msg.value = EXAMPLES[chip.dataset.example];
+          msg.focus();
+        });
+      });
+
+      btn.addEventListener("click", async () => {
+        const text = msg.value.trim();
+        errorBox.hidden = true;
+        if (!text && !attached) {
+          showError(t("error.empty"));
+          msg.focus();
+          return;
+        }
+
+        const form = new FormData();
+        form.append("text", text);
+        form.append("language", getLang());
+        if (attached) form.append("file", attached, attached.name || "screenshot.png");
+
+        btn.disabled = true;
+        result.replaceChildren();
+        const steps = attached
+          ? ["loading.screenshot", "loading.links", "loading.search", "loading.write"]
+          : ["loading.read", "loading.links", "loading.search", "loading.write"];
+        const stop = startLoading(document.getElementById("loading"), document.getElementById("loading-text"), steps);
+
+        try {
+          const v = await callApi("/api/analyze/message", { method: "POST", body: form });
+          stop();
+          renderVerdict(result, v);
+        } catch (err) {
+          stop();
+          showError(err.message || t("error.generic"));
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

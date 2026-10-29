@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sentinel — check anything that feels like a scam</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=4">
+  <script src="app.js?v=4" defer></script>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.5 4 5.5v6.2c0 4.6 3.3 8.6 8 9.8 4.7-1.2 8-5.2 8-9.8V5.5l-8-3Z" fill="#EDE8F0"/>
+          <path d="M8.5 12.2 11 14.6l4.6-5" stroke="#2F1F3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Sentinel
+      </a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang="English" aria-pressed="true">English</button>
+        <button type="button" data-lang="Hindi" aria-pressed="false">हिंदी</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="intro">
+      <h1 data-i18n="intro.title">Check anything that feels like a scam.</h1>
+      <p data-i18n="intro.body">Sentinel reads, listens and looks for the tricks scammers use, then tells you exactly what to do.</p>
+    </section>
+
+    <section class="features" aria-label="What Sentinel can check">
+
+      <a class="feature feature-call" href="call.html">
+        <div>
+          <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 6 6L15 14l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>
+            </svg>
+          </div>
+          <h2 data-i18n="call.title">Protect a live call</h2>
+          <p data-i18n="call.body">Sentinel listens while you talk and warns you the moment someone asks for money or an OTP.</p>
+          <div class="listening" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+        <span class="cta" data-i18n="call.cta">Start protection</span>
+      </a>
+
+      <a class="feature feature-voice" href="voice.html">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/>
+          </svg>
+        </div>
+        <h2 data-i18n="voice.title">Check a voice note</h2>
+        <p data-i18n="voice.body">Find out if a recording is a scam, and whether the voice is real or made by AI.</p>
+      </a>
+
+      <a class="feature feature-screenshot" href="screenshot.html">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="6" y="2.5" width="12" height="19" rx="2.5"/>
+            <rect x="9" y="8" width="6" height="5" rx="1" stroke-dasharray="2 1.5"/>
+          </svg>
+        </div>
+        <h2 data-i18n="screenshot.title">Check a screenshot</h2>
+        <p data-i18n="screenshot.body">See exactly where the fraud is in a message, payment proof or video call.</p>
+      </a>
+
+      <a class="feature feature-message" href="message.html">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 5h16v11H9l-5 4V5Z"/>
+            <path d="M9.5 11.5 11 10a2 2 0 0 1 2.8 2.8l-1.5 1.5"/>
+          </svg>
+        </div>
+        <div class="text">
+          <h2 data-i18n="message.title">Check a message or link</h2>
+          <p data-i18n="message.body">Paste an SMS, email or WhatsApp forward. Sentinel checks every link and number in it.</p>
+        </div>
+      </a>
+
+    </section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer.help">Lost money to a scam in India? Call 1930 or report at cybercrime.gov.in.</p>
+    <p data-i18n="footer.models">Built on Meta Muse Wonder, Muse Spark, Muse Voice Transcribe and SAM 3.1.</p>
+  </footer>
+
+</body>
+</html>

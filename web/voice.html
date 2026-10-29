@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Check a voice note — Sentinel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=4">
+  <script src="app.js?v=4" defer></script>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.5 4 5.5v6.2c0 4.6 3.3 8.6 8 9.8 4.7-1.2 8-5.2 8-9.8V5.5l-8-3Z" fill="#EDE8F0"/>
+          <path d="M8.5 12.2 11 14.6l4.6-5" stroke="#2F1F3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Sentinel
+      </a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang="English" aria-pressed="true">English</button>
+        <button type="button" data-lang="Hindi" aria-pressed="false">हिंदी</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <a class="back" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>
+      <span data-i18n="nav.all">All checks</span>
+    </a>
+
+    <h1 data-i18n="voice.title">Check a voice note</h1>
+    <p class="lead" data-i18n="voice.lead">Upload a voice note or call recording, or record one here.</p>
+
+    <div class="sheet" id="input-sheet">
+      <div class="voice-input" id="voice-input">
+        <div class="dropzone" id="dropzone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/>
+          </svg>
+          <p data-i18n="voice.drop">Drop an audio file here, or choose one. WhatsApp voice notes work too.</p>
+          <label class="attach-btn">
+            <span data-i18n="voice.choose">Choose audio file</span>
+            <input type="file" id="file" accept="audio/*,.ogg,.opus,.m4a" class="sr-only">
+          </label>
+        </div>
+
+        <span class="or" data-i18n="voice.or">or</span>
+
+        <div class="recorder">
+          <button type="button" class="record-btn" id="record" aria-describedby="record-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3"/>
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>
+            </svg>
+          </button>
+          <span class="record-label" id="record-label" data-i18n="voice.record">Record</span>
+          <span class="timer" id="timer" hidden>0:00</span>
+        </div>
+      </div>
+
+      <div class="audio-preview" id="preview" hidden>
+        <audio id="player" controls></audio>
+        <button type="button" class="remove-btn" id="remove" data-i18n="voice.remove">Remove audio</button>
+      </div>
+
+      <div class="actions-row">
+        <button type="button" id="check" class="btn-primary" data-i18n="voice.check">Check voice note</button>
+      </div>
+    </div>
+
+    <p id="error" class="error" role="alert" hidden></p>
+    <div id="loading" class="loading" aria-live="polite" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <span id="loading-text"></span>
+    </div>
+    <section id="result" aria-live="polite"></section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer.help">Lost money to a scam in India? Call 1930 or report at cybercrime.gov.in.</p>
+    <p data-i18n="footer.models">Built on Meta Muse Wonder, Muse Spark, Muse Voice Transcribe and SAM 3.1.</p>
+  </footer>
+
+  <script>
+    const MAX_RECORD_SECONDS = 300;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("check");
+      const errorBox = document.getElementById("error");
+      const result = document.getElementById("result");
+      const inputArea = document.getElementById("voice-input");
+      const sheet = document.getElementById("input-sheet");
+      const fileInput = document.getElementById("file");
+      const preview = document.getElementById("preview");
+      const player = document.getElementById("player");
+      const recordBtn = document.getElementById("record");
+      const recordLabel = document.getElementById("record-label");
+      const timer = document.getElementById("timer");
+
+      let wav = null;          // the WAV blob that will be sent
+      let mic = null;          // active recorder
+      let tick = null;
+
+      function showError(text) {
+        errorBox.textContent = text;
+        errorBox.hidden = false;
+      }
+
+      function setAudio(blob) {
+        wav = blob;
+        if (player.src) URL.revokeObjectURL(player.src);
+        player.src = URL.createObjectURL(blob);
+        preview.hidden = false;
+        inputArea.hidden = true;
+        result.replaceChildren();
+      }
+
+      function clearAudio() {
+        wav = null;
+        fileInput.value = "";
+        if (player.src) URL.revokeObjectURL(player.src);
+        player.removeAttribute("src");
+        preview.hidden = true;
+        inputArea.hidden = false;
+        result.replaceChildren();
+      }
+
+      async function useFile(file) {
+        errorBox.hidden = true;
+        if (!file) return;
+        const stop = startLoading(document.getElementById("loading"), document.getElementById("loading-text"), ["loading.prepare"]);
+        try {
+          setAudio(await fileToWav(file));
+        } catch (err) {
+          showError(err.message || t("error.audioType"));
+        } finally {
+          stop();
+        }
+      }
+
+      fileInput.addEventListener("change", () => useFile(fileInput.files[0]));
+      document.getElementById("remove").addEventListener("click", clearAudio);
+
+      ["dragenter", "dragover"].forEach((ev) => sheet.addEventListener(ev, (e) => {
+        e.preventDefault();
+        sheet.classList.add("dragging");
+      }));
+      ["dragleave", "drop"].forEach((ev) => sheet.addEventListener(ev, () => sheet.classList.remove("dragging")));
+      sheet.addEventListener("drop", (e) => {
+        e.preventDefault();
+        useFile(e.dataTransfer?.files?.[0]);
+      });
+
+      function setRecordingUI(on) {
+        recordBtn.classList.toggle("recording", on);
+        recordLabel.dataset.i18n = on ? "voice.stop" : "voice.record";
+        recordLabel.textContent = t(recordLabel.dataset.i18n);
+        timer.hidden = !on;
+      }
+
+      async function stopRecording() {
+        clearInterval(tick);
+        const active = mic;
+        mic = null;
+        setRecordingUI(false);
+        if (active) setAudio(await active.stop());
+      }
+
+      recordBtn.addEventListener("click", async () => {
+        errorBox.hidden = true;
+        if (mic) return stopRecording();
+        try {
+          mic = await startMic();
+        } catch (err) {
+          showError(err.message);
+          return;
+        }
+        const started = Date.now();
+        timer.textContent = "0:00";
+        setRecordingUI(true);
+        tick = setInterval(() => {
+          const secs = Math.floor((Date.now() - started) / 1000);
+          timer.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+          if (secs >= MAX_RECORD_SECONDS) stopRecording();
+        }, 250);
+      });
+
+      btn.addEventListener("click", async () => {
+        errorBox.hidden = true;
+        if (mic) await stopRecording();
+        if (!wav) {
+          showError(t("error.noAudio"));
+          return;
+        }
+
+        const form = new FormData();
+        form.append("file", wav, "voice.wav");
+        form.append("language", getLang());
+
+        btn.disabled = true;
+        result.replaceChildren();
+        const stop = startLoading(document.getElementById("loading"), document.getElementById("loading-text"),
+                                  ["loading.listen", "loading.voice", "loading.search", "loading.write"]);
+        try {
+          const v = await callApi("/api/analyze/audio", { method: "POST", body: form });
+          stop();
+          const extra = el("div");
+          const voiceBox = renderVoiceAnalysis(v.voice_analysis);
+          const transcript = renderTranscript(v);
+          if (voiceBox) extra.append(voiceBox);
+          if (transcript) extra.append(transcript);
+          renderVerdict(result, v, { extra });
+        } catch (err) {
+          stop();
+          showError(err.message || t("error.generic"));
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
