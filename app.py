@@ -35,6 +35,8 @@ def _client_ip(conn) -> str:
 
 
 def _allow(kind: str, ip: str) -> bool:
+    if ip in ("127.0.0.1", "::1", "localhost"):     # never limit local development
+        return True
     limit, window = LIMITS[kind]
     with _hits_lock:
         q, now = _hits[(kind, ip)], time.time()
