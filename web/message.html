@@ -7,15 +7,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
-  <script src="app.js?v=4" defer></script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css?v=12">
+  <script src="app.js?v=12" defer></script>
 </head>
 <body>
 
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="index.html">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" aria-hidden="true">
           <path d="M12 2.5 4 5.5v6.2c0 4.6 3.3 8.6 8 9.8 4.7-1.2 8-5.2 8-9.8V5.5l-8-3Z" fill="#EDE8F0"/>
           <path d="M8.5 12.2 11 14.6l4.6-5" stroke="#2F1F3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -30,7 +31,7 @@
 
   <main class="page">
     <a class="back" href="index.html">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>
       <span data-i18n="nav.all">All checks</span>
     </a>
 
@@ -43,7 +44,7 @@
 
       <div class="attach-row">
         <label class="attach-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15.5 7"/>
           </svg>
           <span data-i18n="message.attach">Add screenshot</span>
@@ -76,10 +77,7 @@
     <section id="result" aria-live="polite"></section>
   </main>
 
-  <footer>
-    <p data-i18n="footer.help">Lost money to a scam in India? Call 1930 or report at cybercrime.gov.in.</p>
-    <p data-i18n="footer.models">Built on Meta Muse Wonder, Muse Spark, Muse Voice Transcribe and SAM 3.1.</p>
-  </footer>
+  <footer class="site-footer" id="site-footer"></footer>
 
   <script>
     const EXAMPLES = {

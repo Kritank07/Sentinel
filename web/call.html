@@ -7,15 +7,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
-  <script src="app.js?v=4" defer></script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css?v=12">
+  <script src="app.js?v=12" defer></script>
 </head>
 <body>
 
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="index.html">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" aria-hidden="true">
           <path d="M12 2.5 4 5.5v6.2c0 4.6 3.3 8.6 8 9.8 4.7-1.2 8-5.2 8-9.8V5.5l-8-3Z" fill="#EDE8F0"/>
           <path d="M8.5 12.2 11 14.6l4.6-5" stroke="#2F1F3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -30,7 +31,7 @@
 
   <main class="page">
     <a class="back" href="index.html">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>
       <span data-i18n="nav.all">All checks</span>
     </a>
 
@@ -39,7 +40,7 @@
 
     <!-- Before the call -->
     <div class="sheet call-start" id="start-view">
-      <button type="button" class="btn-primary" id="start" data-i18n="call.cta">Start protection</button>
+      <button type="button" class="btn-primary" id="start" data-i18n="call.start">Start call</button>
       <p class="call-tip" data-i18n="call.tip">Never share an OTP, PIN or password on a call, even with someone who says they are police or your bank.</p>
     </div>
 
@@ -51,7 +52,7 @@
           <span id="status-text" data-i18n="call.connecting">Connecting…</span>
           <span class="timer" id="timer">0:00</span>
         </div>
-        <button type="button" class="btn-end" id="end" data-i18n="call.end">End protection</button>
+        <button type="button" class="btn-end" id="end" data-i18n="call.end">End call</button>
       </div>
 
       <div class="sheet risk-panel" id="risk" aria-live="polite">
@@ -67,7 +68,7 @@
     <!-- After the call -->
     <div class="sheet call-ended" id="ended-view" hidden>
       <p id="ended-text" data-i18n="call.ended">Protection ended.</p>
-      <button type="button" class="btn-primary" id="again" data-i18n="call.again">Start again</button>
+      <button type="button" class="btn-primary" id="again" data-i18n="call.again">Start call again</button>
     </div>
 
     <p id="error" class="error" role="alert" hidden></p>
@@ -81,10 +82,7 @@
     <button type="button" class="stop-ok" id="stop-ok" data-i18n="call.ok">Okay</button>
   </div>
 
-  <footer>
-    <p data-i18n="footer.help">Lost money to a scam in India? Call 1930 or report at cybercrime.gov.in.</p>
-    <p data-i18n="footer.models">Built on Meta Muse Wonder, Muse Spark, Muse Voice Transcribe and SAM 3.1.</p>
-  </footer>
+  <footer class="site-footer" id="site-footer"></footer>
 
   <script>
     const TARGET_RATE = 24000;   // what Muse Voice Transcribe expects
@@ -131,7 +129,7 @@
       const overlay = $("stop");
 
       let ws = null, mic = null, tick = null, ending = false;
-      let scammer = null, partialEl = null;
+      let scammer = null, partialEl = null, serverError = false, lastVerdict = null;
 
       function showError(text) {
         errorBox.textContent = text;
@@ -189,6 +187,10 @@
 
       function showRisk(msg) {
         const verdict = String(msg.verdict || "SAFE").toUpperCase();
+        if (verdict === "SCAM" && lastVerdict !== "SCAM") {
+          navigator.vibrate?.(300);            // early warning: one short buzz when risk first turns red
+        }
+        lastVerdict = verdict;
         risk.className = `sheet risk-panel verdict-${verdict.toLowerCase()}`;
         risk.replaceChildren();
         const head = el("div", "verdict-head");
@@ -236,6 +238,8 @@
       async function start() {
         errorBox.hidden = true;
         ending = false;
+        serverError = false;
+        lastVerdict = null;
         scammer = null;
         partialEl = null;
         lines.replaceChildren();
@@ -275,7 +279,10 @@
             case "line": addLine(msg.speaker || "A", msg.text || ""); break;
             case "verdict": showRisk(msg); break;
             case "stop": showStop(msg); break;
-            case "error": showError(msg.message || t("error.generic")); break;
+            case "error":
+              serverError = true;                       // keep the server's reason visible
+              showError(msg.message || t("error.generic"));
+              break;
             case "ended":
               ending = true;
               break;
@@ -285,7 +292,7 @@
         ws.onclose = async () => {
           await cleanup();
           ws = null;
-          if (!ending) showError(t("call.lost"));
+          if (!ending && !serverError) showError(t("call.lost"));
           setView("ended");
         };
       }
