@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=12">
-  <script src="app.js?v=12" defer></script>
+  <link rel="stylesheet" href="style.css?v=13">
+  <script src="app.js?v=13" defer></script>
 </head>
 <body>
 
@@ -49,6 +49,10 @@
           <span data-i18n="screenshot.choose">Choose screenshot</span>
           <input type="file" id="file" accept="image/png,image/jpeg" class="sr-only">
         </label>
+        <div class="examples">
+          <span data-i18n="sample.label">Try a sample:</span>
+          <button type="button" class="chip" id="sample-videocall" data-i18n="sample.videocall">Fake police video call</button>
+        </div>
       </div>
 
       <div class="preview-large" id="preview" hidden>
@@ -96,6 +100,15 @@
           errorBox.hidden = true;
           result.replaceChildren();
         },
+      });
+
+      document.getElementById("sample-videocall").addEventListener("click", async () => {
+        errorBox.hidden = true;
+        try {
+          image.attach(await loadSample("samples/videocall.png", "fake-police-video-call.png", "image/png"));
+        } catch (err) {
+          showError(err.message || t("error.sample"));
+        }
       });
 
       btn.addEventListener("click", async () => {

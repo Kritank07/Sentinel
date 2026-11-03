@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=12">
-  <script src="app.js?v=12" defer></script>
+  <link rel="stylesheet" href="style.css?v=13">
+  <script src="app.js?v=13" defer></script>
 </head>
 <body>
 
@@ -49,6 +49,10 @@
             <span data-i18n="voice.choose">Choose audio file</span>
             <input type="file" id="file" accept="audio/*,.ogg,.opus,.m4a" class="sr-only">
           </label>
+          <div class="examples">
+            <span data-i18n="sample.label">Try a sample:</span>
+            <button type="button" class="chip" id="sample-aivoice" data-i18n="sample.aivoice">AI-cloned scam voice</button>
+          </div>
         </div>
 
         <span class="or" data-i18n="voice.or">or</span>
@@ -143,6 +147,14 @@
       }
 
       fileInput.addEventListener("change", () => useFile(fileInput.files[0]));
+      document.getElementById("sample-aivoice").addEventListener("click", async () => {
+        errorBox.hidden = true;
+        try {
+          await useFile(await loadSample("samples/panic_call.mp3", "ai-cloned-scam-voice.mp3", "audio/mpeg"));
+        } catch (err) {
+          showError(err.message || t("error.sample"));
+        }
+      });
       document.getElementById("remove").addEventListener("click", clearAudio);
 
       ["dragenter", "dragover"].forEach((ev) => sheet.addEventListener(ev, (e) => {

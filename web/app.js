@@ -42,6 +42,10 @@ const I18N = {
     "source.sam": "Located by SAM 3.1",
     "source.wonder": "Located by Muse Wonder",
     "error.noImage": "Add a screenshot first.",
+    "sample.label": "Try a sample:",
+    "sample.videocall": "Fake police video call",
+    "sample.aivoice": "AI-cloned scam voice",
+    "error.sample": "The sample couldn't load. Please try again.",
     "voice.lead": "Upload a voice note or call recording, or record one here.",
     "voice.drop": "Drop an audio file here, or choose one. WhatsApp voice notes work too.",
     "voice.choose": "Choose audio file",
@@ -148,6 +152,10 @@ const I18N = {
     "source.sam": "SAM 3.1 ने ढूँढा",
     "source.wonder": "Muse Wonder ने ढूँढा",
     "error.noImage": "पहले स्क्रीनशॉट जोड़ें।",
+    "sample.label": "नमूना आज़माएँ:",
+    "sample.videocall": "नकली पुलिस वीडियो कॉल",
+    "sample.aivoice": "AI से बनी ठगी वाली आवाज़",
+    "error.sample": "नमूना लोड नहीं हो सका। कृपया फिर कोशिश करें।",
     "voice.lead": "वॉइस नोट या कॉल रिकॉर्डिंग अपलोड करें, या यहीं रिकॉर्ड करें।",
     "voice.drop": "ऑडियो फ़ाइल यहाँ ड्रॉप करें या चुनें। WhatsApp वॉइस नोट भी चलेंगे।",
     "voice.choose": "ऑडियो फ़ाइल चुनें",
@@ -262,7 +270,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 /* ---------- Shared footer (edit here once, every page updates) ---------- */
 
-const REPO_URL = "";   // add your GitHub repo link here later; the "Source code" link appears only when this is set
+const REPO_URL = "https://github.com/Kritank07/Sentinel";   // add your GitHub repo link here later; the "Source code" link appears only when this is set
 
 function renderFooter() {
   const footer = document.getElementById("site-footer");
@@ -448,7 +456,7 @@ function setupImageInput({ dropTarget, fileInput, preview, previewImg, previewNa
     if (f) attach(f);
   });
 
-  return { get file() { return file; }, clear };
+  return { get file() { return file; }, clear, attach };
 }
 
 /* ---------- Evidence view: numbered boxes over the image + matching list ---------- */
@@ -638,4 +646,12 @@ function renderTranscript(v) {
     details.append(el("p", null, v.transcript));
   }
   return details;
+}
+
+/* ---------- Sample files (for judges and first-time visitors) ---------- */
+
+async function loadSample(url, name, type) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(t("error.sample"));
+  return new File([await res.blob()], name, { type });
 }
