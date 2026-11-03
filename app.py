@@ -69,6 +69,17 @@ def _save_upload(f: UploadFile, suffix: str) -> str:
     return tmp.name
 
 
+MAX_IMAGE_MB, MAX_AUDIO_MB = 10, 25
+
+
+def _check_size(f: UploadFile, max_mb: int):
+    f.file.seek(0, 2)                    # jump to the end to measure the file
+    size_mb = f.file.tell() / (1024 * 1024)
+    f.file.seek(0)
+    if size_mb > max_mb:
+        raise HTTPException(413, f"This file is too large. Please use one under {max_mb} MB.")
+
+
 def _cleanup(path: str):
     try:
         os.remove(path)
@@ -101,6 +112,7 @@ def analyze_message_endpoint(text: str = Form(""), language: str = Form("English
         raise HTTPException(400, "Paste a message or add a screenshot.")
     path = None
     if file is not None:
+        _check_size(file, MAX_IMAGE_MB)
         ext = os.path.splitext(file.filename or "")[1].lower()
         if ext not in (".png", ".jpg", ".jpeg"):
             raise HTTPException(400, "Use a PNG or JPG image.")
@@ -114,6 +126,7 @@ def analyze_message_endpoint(text: str = Form(""), language: str = Form("English
 
 @app.post("/api/analyze/image", dependencies=[Depends(rate_limit)])
 def analyze_image_endpoint(file: UploadFile = File(...), language: str = Form("English")):
+    _check_size(file, MAX_IMAGE_MB)
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in (".png", ".jpg", ".jpeg"):
         raise HTTPException(400, "Upload a PNG or JPG screenshot.")
@@ -131,6 +144,7 @@ def analyze_image_endpoint(file: UploadFile = File(...), language: str = Form("E
 
 @app.post("/api/analyze/audio", dependencies=[Depends(rate_limit)])
 def analyze_audio_endpoint(file: UploadFile = File(...), language: str = Form("English")):
+    _check_size(file, MAX_AUDIO_MB)
     if not (file.filename or "").lower().endswith(".wav"):
         raise HTTPException(400, "Upload a WAV recording.")
     path = _save_upload(file, ".wav")
