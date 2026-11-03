@@ -150,7 +150,7 @@
       document.getElementById("sample-aivoice").addEventListener("click", async () => {
         errorBox.hidden = true;
         try {
-          await useFile(await loadSample("samples/panick_call.mp3", "ai-cloned-scam-voice.mp3", "audio/mpeg"));
+          await useFile(await loadSample("samples/panic_call.mp3", "ai-cloned-scam-voice.mp3", "audio/mpeg"));
         } catch (err) {
           showError(err.message || t("error.sample"));
         }
