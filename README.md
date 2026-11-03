@@ -23,13 +23,19 @@ Sentinel is built for that moment: something feels wrong, and you need a calm, c
 
 | Feature | What it does |
 |---|---|
-| 📞 **Live call protection** | Listens to a call on speaker, separates the two speakers, labels the likely scammer and escalates its warning as the call unfolds. When the user is about to pay or share an OTP, the whole screen turns red with a specific warning, spoken aloud, with a vibration on Android. |
+| 📞 **Live call protection** | Listens to a call on speaker, separates the two speakers, labels the likely scammer and escalates its warning as the call unfolds. When the user is about to pay or share an OTP, the whole screen turns red with a specific warning, spoken aloud, with a vibration on Android. A **one-click demo scam call** lets anyone watch this happen without a microphone. |
 | 🎙️ **Voice note check** | Upload any recording (including WhatsApp voice notes) or record in the browser. Sentinel flags scam tactics and gives a separate verdict on whether the voice sounds real or AI-cloned. |
 | 🖼️ **Screenshot check** | Draws numbered boxes on the exact spots where the fraud is: the phishing link, the sender, a uniform badge in a fake video call. |
 | 💬 **Message and link check** | Paste text or drop a screenshot. An agent checks every link and phone number and searches for scam reports before giving a verdict. |
 | 🌍 **English and Hindi** | The whole interface and every answer switch language in one tap. The analysis itself works across many languages, including Hinglish, Tamil and Spanish. |
 
 Every verdict comes with **what to do now**, **why**, the **exact quoted evidence**, and **what Sentinel checked**.
+
+### Try it in one click
+- **Live call:** press **Play a demo scam call** to hear a realistic fake "bank fraud team" call. Sentinel tracks the conversation and cuts in with a STOP warning when the victim starts reading out her OTP.
+- **Voice note:** **Try a sample → AI-cloned scam voice**, a "son in trouble" emergency call
+- **Screenshot:** **Try a sample → Fake police video call**
+- **Message:** example buttons for a bank KYC alert, a parcel fee scam and a genuine family message
 
 ---
 
@@ -130,7 +136,7 @@ render.yaml          Render deployment config
 
 - Sentinel's server does not store the messages, screenshots or recordings people check. They are sent to Meta's Model API for analysis, so Meta's API terms apply (on free credits, Meta may use content for product improvement). Avoid submitting other people's private information.
 - Visitor analytics (GoatCounter) count page views only, with no cookies, and never see what people check.
-- Per-visitor rate limits protect the service from abuse.
+- Per-visitor rate limits and upload size limits protect the service from abuse, and error messages never expose internal details.
 - Verdicts quote their evidence, and Sentinel is honest about uncertainty: a voice check is presented as one clue, not proof.
 
 ## Limitations
@@ -138,10 +144,13 @@ render.yaml          Render deployment config
 - The evaluation set is small and hand-built.
 - Voice-deepfake detection is a signal, not proof; new cloning tools can sound very real.
 - Live protection needs the Sentinel page open with the call on speaker. Vibration works on Android, not iPhone.
+- Rate limits are kept in server memory, so they reset when the server restarts. That suits a single server; a shared store would be needed to scale out.
 - Sentinel gives safety guidance, not legal or financial advice.
 
 ---
 
 **Lost money to a scam in India?** Call **1930** or report at **cybercrime.gov.in**.
+
+**Sample audio:** the demo call was generated with Google AI Studio (Gemini text-to-speech) and the voice-note sample with ElevenLabs. They are test data only; all of Sentinel's AI analysis runs on Meta's models. All sample brands, names and numbers are fictional.
 
 Built by **Kritank Jain**.
