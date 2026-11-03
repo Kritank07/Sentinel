@@ -966,3 +966,29 @@ textarea:focus { outline: none; border-color: var(--plum); background: var(--whi
 @media (prefers-reduced-motion: reduce) {
   .pulse { animation: none; }
 }
+
+
+/* ---------- Demo call ---------- */
+
+.call-buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.btn-secondary {
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 14px 26px;
+  border-radius: var(--radius-control);
+  border: 2px solid var(--plum);
+  background: var(--white);
+  color: var(--plum);
+  cursor: pointer;
+}
+.btn-secondary:hover { background: var(--lilac); }
+.btn-secondary:focus-visible { outline: 3px solid var(--plum); outline-offset: 3px; }
+
+.demo-note { margin: 0; font-size: 15px; color: var(--ink-soft); }
+
+@media (max-width: 760px) {
+  .call-buttons { flex-direction: column; width: 100%; }
+  .call-buttons button { width: 100%; }
+}

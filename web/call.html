@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=13">
-  <script src="app.js?v=13" defer></script>
+  <link rel="stylesheet" href="style.css?v=14">
+  <script src="app.js?v=14" defer></script>
 </head>
 <body>
 
@@ -40,7 +40,11 @@
 
     <!-- Before the call -->
     <div class="sheet call-start" id="start-view">
-      <button type="button" class="btn-primary" id="start" data-i18n="call.start">Start call</button>
+      <div class="call-buttons">
+        <button type="button" class="btn-primary" id="start" data-i18n="call.start">Start call</button>
+        <button type="button" class="btn-secondary" id="demo" data-i18n="call.demo">Play a demo scam call</button>
+      </div>
+      <p class="demo-note" data-i18n="call.demoNote">The demo plays a realistic scam call through your speakers and protects it live. No microphone needed.</p>
       <p class="call-tip" data-i18n="call.tip">Never share an OTP, PIN or password on a call, even with someone who says they are police or your bank.</p>
     </div>
 
@@ -129,6 +133,7 @@
       const overlay = $("stop");
 
       let ws = null, mic = null, tick = null, ending = false;
+      let demoMode = false, demo = null, demoAudio = null;   // demo: playback + streaming of the sample call
       let scammer = null, partialEl = null, serverError = false, lastVerdict = null;
 
       function showError(text) {
@@ -210,6 +215,11 @@
       }
 
       function showStop(msg) {
+        if (demoMode && demo) {           // in the demo, Sentinel interrupts the call at the dangerous moment
+          demo.stop();
+          demo = null;
+          setTimeout(() => end(), 300);
+        }
         $("stop-message").textContent = msg.message || "";
         $("stop-action").textContent = msg.action || "";
         overlay.hidden = false;
@@ -226,7 +236,62 @@
         $("end").focus();
       });
 
+      // Load the demo call once: a decoded buffer to play, and 24 kHz mono samples to stream.
+      async function loadDemoAudio() {
+        if (demoAudio) return demoAudio;
+        const res = await fetch("samples/demo_call.wav");
+        if (!res.ok) throw new Error(t("error.sample"));
+        const bytes = await res.arrayBuffer();
+        const ctx = new AudioContext();
+        const buffer = await ctx.decodeAudioData(bytes);
+        await ctx.close();
+        const off = new OfflineAudioContext(1, Math.ceil(buffer.duration * TARGET_RATE), TARGET_RATE);
+        const src = off.createBufferSource();
+        src.buffer = buffer;
+        src.connect(off.destination);
+        src.start();
+        const samples = (await off.startRendering()).getChannelData(0);
+        demoAudio = { buffer, samples };
+        return demoAudio;
+      }
+
+      // Play the call through the speakers and stream the same audio, in real time, to Sentinel.
+      function startDemo({ buffer, samples }) {
+        const FRAME = TARGET_RATE * 80 / 1000;                 // 80 ms per frame
+        const ctx = new AudioContext();
+        const player = ctx.createBufferSource();
+        player.buffer = buffer;
+        player.connect(ctx.destination);
+        const t0 = ctx.currentTime + 0.1;
+        player.start(t0);
+        let sent = 0, finished = false;
+
+        const pump = setInterval(() => {
+          if (ws?.readyState !== WebSocket.OPEN) return;
+          const due = Math.min(samples.length, Math.floor((ctx.currentTime - t0) * TARGET_RATE));
+          while (sent + FRAME <= due) {
+            ws.send(toPcm24k(samples.subarray(sent, sent + FRAME), TARGET_RATE));
+            sent += FRAME;
+          }
+          if (!finished && sent + FRAME > samples.length) {
+            finished = true;
+            ws.send(toPcm24k(new Float32Array(TARGET_RATE * 1.5), TARGET_RATE));   // short silence so the last sentence completes
+            setTimeout(() => end(), 1500);
+          }
+        }, 40);
+
+        return {
+          stop() {
+            clearInterval(pump);
+            try { player.stop(); } catch { /* already stopped */ }
+            ctx.close();
+          },
+        };
+      }
+
       async function cleanup() {
+        demo?.stop();
+        demo = null;
         clearInterval(tick);
         const active = mic;
         mic = null;
@@ -235,8 +300,18 @@
         }
       }
 
-      async function start() {
+      async function start(mode) {
+        demoMode = mode === "demo";
         errorBox.hidden = true;
+        let demoData = null;
+        if (demoMode) {
+          try {
+            demoData = await loadDemoAudio();
+          } catch (err) {
+            showError(err.message || t("error.sample"));
+            return;
+          }
+        }
         ending = false;
         serverError = false;
         lastVerdict = null;
@@ -256,7 +331,9 @@
           const msg = JSON.parse(event.data);
           switch (msg.type) {
             case "ready":
-              try {
+              if (demoMode) {
+                demo = startDemo(demoData);
+              } else try {
                 mic = await startMic((chunk, rate) => {
                   if (ws?.readyState !== WebSocket.OPEN) return;
                   const pcm = toPcm24k(chunk, rate);
@@ -304,9 +381,10 @@
         setStatus("call.ended", true);
       }
 
-      $("start").addEventListener("click", start);
+      $("start").addEventListener("click", () => start("mic"));
+      $("demo").addEventListener("click", () => start("demo"));
       $("end").addEventListener("click", end);
-      $("again").addEventListener("click", start);
+      $("again").addEventListener("click", () => start(demoMode ? "demo" : "mic"));
       window.addEventListener("beforeunload", () => ws?.close());
     });
   </script>

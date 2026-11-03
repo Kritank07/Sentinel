@@ -16,6 +16,8 @@ from sentinel.asr import transcribe
 from sentinel.engine import analyze_image, investigate
 from sentinel.live import LiveSession
 from sentinel.segment import evidence_boxes
+import logging
+log = logging.getLogger("sentinel")
 
 app = FastAPI(title="Sentinel")
 
@@ -89,9 +91,9 @@ def _cleanup(path: str):
 
 @app.exception_handler(Exception)
 async def upstream_error(request: Request, exc: Exception):
+    log.exception("Unhandled error on %s", request.url.path)   # full details stay in Render logs
     return JSONResponse(status_code=502,
-                        content={"detail": "The check couldn't finish. Try again in a moment.",
-                                 "error": str(exc)})
+                        content={"detail": "The check couldn't finish. Try again in a moment."})
 
 
 # =====================================================================
