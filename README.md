@@ -5,7 +5,7 @@
 Sentinel checks anything that feels like a scam (a live phone call, a voice note, a screenshot or a message) and tells people, in their own language, exactly what to do.
 
 🔗 **Live app:** https://sentinel-x9xf.onrender.com
-🎬 **Demo video:** _coming soon_
+🎬 **Demo video:** https://youtu.be/kQik9rl_mMw
 
 > The free hosting tier sleeps when idle, so the first visit can take about 30 seconds to wake up.
 
